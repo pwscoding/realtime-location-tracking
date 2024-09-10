@@ -1,4 +1,3 @@
-
 const socket = io();
 
 if (navigator.geolocation) {
@@ -30,6 +29,16 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 const markers = {};
 let routingControl;
 
+// Create and add navigation arrow
+const navIcon = L.icon({
+    iconUrl: 'https://static-00.iconduck.com/assets.00/map-arrow-up-icon-1857x2048-1scitnd4.png', // Path to your arrow icon
+    iconSize: [30, 30], // Size of the icon
+    iconAnchor: [15, 15], // Anchor point of the icon (center)
+    popupAnchor: [0, -15] // Popup anchor point (if needed)
+});
+const navMarker = L.marker([0, 0], { icon: navIcon }).addTo(map);
+navMarker.setOpacity(0); // Initially hidden
+
 // Handle location updates from the server
 socket.on('receive-location', (data) => {
     const { id, latitude, longitude } = data;
@@ -41,7 +50,7 @@ socket.on('receive-location', (data) => {
         markers[id] = L.marker([latitude, longitude]).addTo(map); // Add new marker
     }
 
-    // If we have two markers, show the route
+    // Show route if two markers are present
     if (Object.keys(markers).length === 2) {
         const [id1, id2] = Object.keys(markers);
         const latlngs = [
@@ -62,6 +71,15 @@ socket.on('receive-location', (data) => {
             }).addTo(map);
         }
     }
+
+    // Update navigation arrow to point towards the current location
+    navMarker.setLatLng([latitude, longitude]);
+    navMarker.setOpacity(1); // Show the navigation arrow
+
+    // Hide user's own marker
+    if (markers[myId]) {
+        markers[myId].setOpacity(0); // Hide the marker
+    }
 });
 
 // Handle user disconnection
@@ -76,5 +94,10 @@ socket.on('user-disconnect', (data) => {
     if (routingControl && Object.keys(markers).length < 2) {
         map.removeControl(routingControl);
         routingControl = null;
+    }
+
+    // Hide the navigation arrow if no markers are present
+    if (Object.keys(markers).length === 0) {
+        navMarker.setOpacity(0);
     }
 });
